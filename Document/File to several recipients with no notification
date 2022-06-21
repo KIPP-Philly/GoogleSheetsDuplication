@@ -1,0 +1,120 @@
+//SOURCE: https://www.youtube.com/watch?v=X6yM229Lo_M
+//TEMPLATE: https://docs.google.com/spreadsheets/d/10JSO_reaWFGMznwOSVGOQ9rzeknLBKk_zeD_lQnaK3k/copy
+//TEMPLATE: https://docs.google.com/spreadsheets/d/1h9WTzG6Ck8mKU99emDXNbpmx3a5m9zw9sf6_HMe_ZvM/copy
+
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  // Or DocumentApp or FormApp.
+  ui.createMenu('Options')
+      .addItem('Make copy for list below','copyfilefromsource')
+      //.addItem('Hide data sheet from students','hidesheet')
+  .addToUi();
+}
+
+
+
+function copyfilefromsource() {
+ var ui = SpreadsheetApp.getUi();
+  
+  var sheet_merge = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("List");
+  var last_row = sheet_merge.getLastRow();
+  
+   var newsheet_firstname = null;
+  var newsheet_surname = null;
+  var newsheet_email = null;
+  var source_folder = null;
+  var file_owner = null;
+  var dest_folder = null;
+  var sheets_created = 0;
+  var new_file = null;
+  var source_file = null;
+  var student_id = null;
+  var google_domain = null;
+  var range = sheet_merge.getRange(1, 1, last_row, 4);
+  var temp = null;
+  
+  source_file = DriveApp.getFileById(range.getCell(1, 2).getValue()); //gets the source file to copy  
+  dest_folder = DriveApp.getFolderById(range.getCell(2, 2).getValue()); //gets the ID of the folder to place the copied files into
+    file_owner = range.getCell(3, 2).getValue();  //person to own the files
+    google_domain = range.getCell(4, 2).getValue();  //extension of the email address 
+  
+  if (last_row <= 6) {
+    SpreadsheetApp.getUi().alert("No rows to process!");
+    return
+  }
+  
+  for (var i = 7; i <= last_row; i++) { // loop to go down evenery row from 7 until the end
+    if (range.getCell(i, 4).getValue() == '') {   //makes sure there is nothing in the column, i.e. can run the script with some students already been processed if it fails half way through.
+    student_id = range.getCell(i, 1).getValue();  //take the first column for the     
+    newsheet_email =  student_id + google_domain;  //combines with username with the domain; 
+    // should add some user checking code here!!!!! and only run the below if user exists (future improvement)
+    
+    newsheet_firstname = range.getCell(i, 2).getValue(); //gets first name from the sheet
+    newsheet_surname = range.getCell(i, 3).getValue(); //gets surname from the sheet
+           
+    new_file = source_file.makeCopy(source_file.getName() + " - " + newsheet_firstname + " " + newsheet_surname + " - " + student_id, dest_folder);
+    var newID = new_file.getId();
+    
+    addOwnerSilent(newID,file_owner)
+    addViewerSilent(newID,newsheet_email)
+    //new_file.setOwner(file_owner);  //allocates an owner to the sheet
+    //new_file.addViewer(newsheet_email); //allocates a viewer to the sheet this method sends a notification email
+    //new_file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); //adds anyone with the link as a viewer
+    
+    //source_folder.removeFile(new_file); // hides from root folder  not required as going directly to correrrect folder
+   // new_file.setActiveSheet('My Grades');
+    //new_file.getRange(2,3).setValue(student_id);
+    
+    //change the a cell in the copied spreadsheet to the student ID 
+    //var ss = SpreadsheetApp.openById(new_file.getId());
+    //var sheet = ss.getSheets()[0]; // "access data on different tabs"
+    //var sheet = ss.getSheetByName('My Grades');
+     // ss.setActiveSheet(sheet);
+   // ss.getRange('C2').setValue(student_id);
+    
+    //Add the details that the process has worked
+    SpreadsheetApp.getActiveSheet().getRange(i,1).setFormula('=HYPERLINK("' + new_file.getUrl() +'/","'+student_id+'")');
+    SpreadsheetApp.getActiveSheet().getRange(i,4).setValue(new_file.getId());
+    
+    sheets_created++; // add to files created
+    }
+  }
+  ui.alert(sheets_created + " files were created!")
+}
+
+
+
+function addViewerSilent( docId, userEmail ) {
+  var permissionResource = {
+    role: 'reader',   //can also have owner / organizer / fileOrganizer / writer / commenter / reader
+    type: 'user',
+    value: userEmail
+  };
+  var optionalArgs = {
+    sendNotificationEmails: false,
+    supportsAllDrives: true
+  };
+  Drive.Permissions.insert(permissionResource, docId, optionalArgs);
+}
+
+function addOwnerSilent( docId, userEmail ) {
+  var permissionResource = {
+    role: 'owner',   //can also have owner / organizer / fileOrganizer / writer / commenter / reader
+    type: 'user',
+    value: userEmail
+  };
+  var optionalArgs = {
+    sendNotificationEmails: false,
+    supportsAllDrives: true
+  };
+  Drive.Permissions.insert(permissionResource, docId, optionalArgs);
+}
+
+
+
+function testFolder(folderName){
+  var exist = true;
+  try{var testFolder = DocsList.getFolder(folderName)}
+  catch(err){exist=false}
+  return exist;
+}
